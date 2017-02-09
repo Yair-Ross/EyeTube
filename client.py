@@ -37,14 +37,18 @@ class Communication():
 
     def handle_message(self, data):
         if data[:3] == 'ok:':
-            pass
+            port = int(data[3:7])
+            parts = int(data[8:])
+            receive = Receiver(port, parts)
+            receive.start()
 
 
 
 
 
 IP, PORT = '127.0.0.1', 7777
-CASHE = "D:\\here\\"
+CASHE = "E:\\tmp\\here\\"
+
 
 
 
@@ -52,9 +56,11 @@ CASHE = "D:\\here\\"
 sock = socket.socket()
 sock.connect((IP, PORT))
 
+com = Communication(sock)
+
 sock.send('Watch:' + 'Movie Name')
 data = sock.recv(1024)
-receive = Receiver(5555, 10)
-receive.start()
+com.handle_message(data)
+
 
 sock.close()

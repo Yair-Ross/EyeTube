@@ -73,10 +73,15 @@ class Communication():
             name = dat[6:]
             fold, parts = sql.get_movie(name)
             port = randint(3000, 7000)
-            #stream = Streamer(0, port, fold, 0, parts)
-            stream = Streamer(0, 5555, "D:\\dum_dogs\\gt", 0, 30)
+
+            #mutex.acquire()
+            #threads[port] = 'ok'
+            #mutex.release()
+
+            stream = Streamer(0, port, fold, 0, parts)
+            #stream = Streamer(0, 5555, "D:\\dum_dogs\\gt", 0, 30)
             stream.start()
-            self.send_to_customer('ok:' + str(parts) + ':' + str(port), client)
+            self.send_to_customer('ok:' + str(port) + ':' + str(parts), client)
 
     def send_to_customer(self, dat, client):
         """sends to the client the data"""
@@ -91,11 +96,11 @@ class Sqlcommands():
         pass
 
     def get_movie(self, name):
-        return PATH, 30
+        return PATH, 10
 
 
 
-PATH = "D:\\dum_dogs\\gt"
+PATH = "E:\\tmp\\test_subj\\"
 
 
 server_socket = socket.socket()
@@ -103,6 +108,10 @@ server_socket.bind(('0.0.0.0', 7777))
 server_socket.listen(10)
 open_client_sockets = []
 #numOfThreads = 0
+
+threads = {}
+#will be the ipc controller
+mutex = threading.Lock()
 
 #handles the requests
 com = Communication(server_socket)
