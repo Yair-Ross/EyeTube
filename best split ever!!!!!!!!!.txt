@@ -1,0 +1,1 @@
+ffmpeg -i input.mpg -c copy -map 0 -segment_time 8 -f segment output%03d.mpg
