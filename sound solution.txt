@@ -1,0 +1,9 @@
+לקחת את סאונד הסרטון ולהשימו בתוך קובץ MP2
+ffmpeg -i filename.mp4 filename.mp2
+
+http://superuser.com/questions/332347/how-can-i-convert-mp4-video-to-mp3-audio-with-ffmpeg
+
+לאחד בין הסרטון MPEG והסאונד
+ffmpeg -i video.avi -i audio.mp3 -codec copy -shortest output.avi
+
+http://stackoverflow.com/questions/11779490/how-to-add-a-new-audio-not-mixing-into-a-video-using-ffmpeg
