@@ -161,6 +161,15 @@ def main():
     pygame.quit()'''
 
 
+    def get_part_video_num(num):
+        if len(str(num)) == 1:
+            return '00' + str(num)
+        elif len(str(num)) == 2:
+            return '0' + str(num)
+        else:
+            return str(num)
+
+
     import pygame
     import time
     import sys
@@ -169,7 +178,7 @@ def main():
 
     pygame.init()
     clock = pygame.time.Clock()
-    movie = pygame.movie.Movie("E:\\tmp\\test_subj\\out000.mpg")
+    movie = pygame.movie.Movie("E:\\tmp\\here\\000.mpg")
     screen = pygame.display.set_mode(movie.get_size())
     movie_screen = pygame.Surface(movie.get_size()).convert()
 
@@ -186,7 +195,7 @@ def main():
 
         if not movie.get_busy():
             print num
-            movie = pygame.movie.Movie('E:\\tmp\\test_subj\\out00' + str(num) + '.mpg')
+            movie = pygame.movie.Movie("E:\\tmp\\here\\" + get_part_video_num(num) + '.mpg')
             movie.set_display(movie_screen)
             movie.play()
             num += 1
