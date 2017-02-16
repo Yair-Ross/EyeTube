@@ -7,6 +7,7 @@ import threading
 from random import randint
 import sqlite3
 import hashlib
+from os import remove
 
 
 class Streamer(threading.Thread):
@@ -102,20 +103,53 @@ class Receive_vid(threading.Thread):
         self.ip = ip
         self.sock = socket.socket()
         self.temp_path = temp_path
+        self.count = 0
+        self.data = ''
 
     def run(self):
-        self.sock.connect((self.ip, self.port))
+        md5 = hashlib.md5()
+        self.sock.bind((self.ip, self.port))
+        self.sock.listen(1)
+        (self.client, self.address) = self.sock.accept()
+
+        isNotValid = True
+
+        while isNotValid:
+            self.data = self.client.recv(1024)
+            if self.data[:5] == 'stat:':
+                name = self.data[5:self.data.index[':!:']]
+                c_hash = self.data[self.data.index[':!:'] + 3:]
+                if sql.exists_in_base('HASH', c_hash) and sql.exists_in_base('MOVIE_NAME', name):
+                    break
+
+
         f = open(self.temp_path, 'wb')
 
         while True:
-            hash = self.sock.recv(1024)
-            self.sock.send('ok')
-            data = self.sock.recv(4096)
-            if not hashlib.md5(data).hexdigest() == hash:
-                self.sock.send('sa')
+            c_hash = self.client.recv(1024)
+            if c_hash == 'end-of-upload':
+                """
+                code in here for making the video to valid mpeg
+                """
+                self.client.send('complete')
+                self.client.close()
+                self.sock.close()
+                f.close()
+                break
+            self.client.send('ok')
+            self.data = self.client.recv(4096)
+            while not md5(self.data).hexdigest() == c_hash:
+                self.count += 1
+                if self.count > 5:
+                    self.client.close()
+                    f.close()
+                    remove(self.path)
+                    return
+                self.client.send('sa')
             else:
-                self.sock.send('kg')
-                f.write(data)
+                self.client.send('kg')
+                f.write(self.data)
+
 
 
 
@@ -148,7 +182,7 @@ class Communication():
             stream = Streamer(0, port, fold, 0, parts)
             #stream = Streamer(0, 5555, "D:\\dum_dogs\\gt", 0, 30)
             stream.start()
-            self.send_to_customer('ok:' + str(port) + ':' + str(parts), client)
+            self.send_to_customer('video_stream:' + str(port) + ':' + str(parts), client)
 
         elif dat[:5] == 'from:':
             port = dat[5:9]
@@ -180,12 +214,17 @@ class Sqlcommands():
         pass
 
     def get_movie(self, name):
+        """returns the movie path and number of parts"""
         return PATH, 59
 
+    def exists_in_base(self, param, value):
+        """returns if exists in database"""
+        return True
 
 
-#PATH = "D:\\from2\\"
-PATH = "E:\\tmp\\test_subj\\"
+
+PATH = "D:\\from2\\"
+#PATH = "E:\\tmp\\test_subj\\"
 
 
 server_socket = socket.socket()
