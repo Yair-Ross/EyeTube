@@ -85,6 +85,7 @@ class Streamer(threading.Thread):
     def stop(self):
         """stops the server thread"""
         self.client.send('END')
+        self.client.close()
         self.sock.close()
 
     def send_parts(self):
@@ -97,44 +98,36 @@ class Streamer(threading.Thread):
 class Receive_vid(threading.Thread):
     """receive upload of a video"""
 
-    def __init__(self, port, ip, temp_path):
+    def __init__(self, port, temp_path, name, hashfile):
         """constractor: create a video upload receiver thread"""
+        threading.Thread.__init__(self)
         self.port = port
-        self.ip = ip
         self.sock = socket.socket()
         self.temp_path = temp_path
         self.count = 0
         self.data = ''
+        self.name = name
+        self.hashfile = hashfile
 
     def run(self):
+        """starts a receiver thread"""
         md5 = hashlib.md5()
-        self.sock.bind((self.ip, self.port))
+        self.sock.bind(('0.0.0.0', self.port))
         self.sock.listen(1)
         (self.client, self.address) = self.sock.accept()
 
-        isNotValid = True
-
-        while isNotValid:
-            self.data = self.client.recv(1024)
-            if self.data[:5] == 'stat:':
-                name = self.data[5:self.data.index[':!:']]
-                c_hash = self.data[self.data.index[':!:'] + 3:]
-                if sql.exists_in_base('HASH', c_hash) and sql.exists_in_base('MOVIE_NAME', name):
-                    break
-
-
-        f = open(self.temp_path, 'wb')
+        f = open(self.temp_path + str(self.port), 'wb')
 
         while True:
             c_hash = self.client.recv(1024)
             if c_hash == 'end-of-upload':
+                f.close()
                 """
                 code in here for making the video to valid mpeg
                 """
                 self.client.send('complete')
                 self.client.close()
                 self.sock.close()
-                f.close()
                 break
             self.client.send('ok')
             self.data = self.client.recv(4096)
@@ -165,22 +158,22 @@ class Communication():
 
     def handle_request(self, dat, client):
         """handles the data and returns the requested action"""
+        print dat
         if dat == "" or dat == "exit":
             open_client_sockets.remove(client)
             print "Connection with client closed"
 
         elif dat[:6] == 'Watch:':
-            #stream = Streamer(0, randint(3000, 7777), '', 0, 10)
+            """in this case the client want to watch a video"""
             name = dat[6:]
             fold, parts = sql.get_movie(name)
-            port = randint(3000, 7000)
+            port = rand_port()
 
             mutex.acquire()
             threads[port] = (0, 0)
             mutex.release()
 
             stream = Streamer(0, port, fold, 0, parts)
-            #stream = Streamer(0, 5555, "D:\\dum_dogs\\gt", 0, 30)
             stream.start()
             self.send_to_customer('video_stream:' + str(port) + ':' + str(parts), client)
 
@@ -198,7 +191,21 @@ class Communication():
             mutex.release()
 
         elif dat[:7] == 'upload:':
-            pass
+            name = dat[7:dat.index(':!:')]
+            f_hash = dat[dat.index(':!:') + 3:]
+            if sql.exists_in_base('HASH', f_hash) and sql.exists_in_base('MOVIE_NAME', name):
+                port = rand_port()
+
+                mutex.acquire()
+                threads[port] = (0, 0)
+                mutex.release()
+
+                receiver = Receive_vid(port, TMP_UPLOAD + 'tmp_' + name, name, f_hash)
+                receiver.start()
+
+                self.send_to_customer('upload_approved:' + str(port), client)
+            else:
+                self.send_to_customer('invalid', client)
 
 
     def send_to_customer(self, dat, client):
@@ -222,8 +229,22 @@ class Sqlcommands():
         return True
 
 
+def rand_port():
+    p = randint(3000, 7000)
+    while True:
+        mutex.acquire()
+        l = threads
+        mutex.release()
+        if p in l:
+            p = randint(3000, 7000)
+        else:
+            break
+    return p
+
+
 
 PATH = "D:\\from2\\"
+TMP_UPLOAD = 'E:\\tmp\\upload_tmp\\'
 #PATH = "E:\\tmp\\test_subj\\"
 
 

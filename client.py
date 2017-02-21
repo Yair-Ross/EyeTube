@@ -8,6 +8,7 @@ from os import listdir
 from os.path import isfile, join
 import time
 import sys
+import hashlib
 
 class Receiver(threading.Thread):
     """thread that receives video stream and saves it"""
@@ -23,7 +24,7 @@ class Receiver(threading.Thread):
 
     def run(self):
         """gets the stream and saves it in the cashe"""
-        self.sock.connect(('127.0.0.1', self.port))
+        self.sock.connect((IP, self.port))
 
         while True:
             self.part = self.sock.recv(3)
@@ -41,12 +42,45 @@ class Receiver(threading.Thread):
 class Uploader(threading.Thread):
     """thread that uploads a file to the server"""
 
-    def __init__(self):
-        pass
+    def __init__(self, port, path):
+        """constractor: builds an uploader thread"""
+        self.port = port
+        self.sock = socket.socket()
+        self.path = path
+        self.data = ''
 
     def run(self):
         """uploads a file to the server"""
-        pass
+        md5 = hashlib.md5()
+        self.sock.connect((IP, self.port))
+        f = open(self.path, 'rb')
+        dat = f.read(4096)
+        while dat != '':
+            self.sock.send(md5(dat).hexdigest())
+            self.data = self.sock.recv(2)
+
+            if not self.data == 'ok':
+                return
+
+            self.sock.send(dat)
+            self.data = self.sock.recv(2)
+            while self.data == 'sa':
+                self.sock.send(dat)
+                self.data = self.sock.recv(2)
+            if self.data == 'kg':
+                dat = f.read(4096)
+            else:
+                return
+
+        f.close()
+        self.sock.send('end-of-upload')
+        self.data = self.sock.recv(1024)
+        if self.data == 'complete':
+            self.sock.close()
+        else:
+            pass
+
+
 
 
 class Communication():
@@ -55,13 +89,16 @@ class Communication():
         self.sock = sock
 
     def handle_message(self, data):
+        print data
         if data[:13] == 'video_stream:':
             port = int(data[13:17])
             parts = int(data[18:])
             receive = Receiver(port, parts)
             receive.start()
-        elif data[:0] == 'upload_approve:':
-            pass
+        elif data[:16] == 'upload_approved:':
+            port = data[16:]
+            uploader = Uploader(port, upload_path)
+            uploader.start()
 
 
 
@@ -72,6 +109,18 @@ def get_part_video_num(num):
         return '0' + str(num)
     else:
         return str(num)
+
+
+
+def generate_file_md5(filename, blocksize=2**20):
+    m = hashlib.md5()
+    with open(filename, "rb") as f:
+        while True:
+            buf = f.read(blocksize)
+            if not buf:
+                break
+            m.update(buf)
+    return m.hexdigest()
 
 
 
@@ -149,6 +198,8 @@ if 1 == 2:
     sock.close()
 
 if 1 == 1:
-    sock.send('Watch:' + 'Movie Name')
+    upload_path = "E:\\tmp\\WTF.mp4"
+    file_hash = generate_file_md5(upload_path)
+    sock.send('upload:' + 'testname:!:' + file_hash)
     data = sock.recv(1024)
     com.handle_message(data)
