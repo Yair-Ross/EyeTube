@@ -44,6 +44,7 @@ class Uploader(threading.Thread):
 
     def __init__(self, port, path):
         """constractor: builds an uploader thread"""
+        threading.Thread.__init__(self)
         self.port = port
         self.sock = socket.socket()
         self.path = path
@@ -51,12 +52,14 @@ class Uploader(threading.Thread):
 
     def run(self):
         """uploads a file to the server"""
-        md5 = hashlib.md5()
+        m = hashlib.md5
         self.sock.connect((IP, self.port))
         f = open(self.path, 'rb')
         dat = f.read(4096)
+        print 'uploading...'
         while dat != '':
-            self.sock.send(md5(dat).hexdigest())
+            hashed = m(dat)
+            self.sock.send(hashed.hexdigest())
             self.data = self.sock.recv(2)
 
             if not self.data == 'ok':
@@ -96,7 +99,7 @@ class Communication():
             receive = Receiver(port, parts)
             receive.start()
         elif data[:16] == 'upload_approved:':
-            port = data[16:]
+            port = int(data[16:])
             uploader = Uploader(port, upload_path)
             uploader.start()
 
@@ -198,7 +201,9 @@ if 1 == 2:
     sock.close()
 
 if 1 == 1:
-    upload_path = "E:\\tmp\\WTF.mp4"
+    #upload_path = "E:\\tmp\\WTF.mp4"
+    upload_path = "D:\\The_Hobbit_Trailer.mp4"
+    #upload_path = "D:\\dogs.mp4"
     file_hash = generate_file_md5(upload_path)
     sock.send('upload:' + 'testname:!:' + file_hash)
     data = sock.recv(1024)

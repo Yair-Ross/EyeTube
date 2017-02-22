@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import pygame
+#import pygame
 
 
 def main():
@@ -161,7 +161,7 @@ def main():
     pygame.quit()'''
 
 
-    def get_part_video_num(num):
+    '''def get_part_video_num(num):
         if len(str(num)) == 1:
             return '00' + str(num)
         elif len(str(num)) == 2:
@@ -178,11 +178,13 @@ def main():
 
     pygame.init()
     clock = pygame.time.Clock()
-    movie = pygame.movie.Movie("E:\\tmp\\here\\000.mpg")
+    pygame.mixer.quit()
+    movie = pygame.movie.Movie("D:\\hell_yeh\\000.mpg")
     screen = pygame.display.set_mode(movie.get_size())
     movie_screen = pygame.Surface(movie.get_size()).convert()
 
     movie.set_display(movie_screen)
+    movie.set_volume(0.5)
     movie.play()
 
     num = 1
@@ -195,8 +197,9 @@ def main():
 
         if not movie.get_busy():
             print num
-            movie = pygame.movie.Movie("E:\\tmp\\here\\" + get_part_video_num(num) + '.mpg')
+            movie = pygame.movie.Movie("D:\\hell_yeh\\" + get_part_video_num(num) + '.mpg')
             movie.set_display(movie_screen)
+            movie.set_volume(0.5)
             movie.play()
             num += 1
 
@@ -205,7 +208,83 @@ def main():
         clock.tick(FPS)
 
 
-    pygame.quit()
+    pygame.quit()'''
+
+
+
+    '''def get_part_video_num(num):
+        if len(str(num)) == 1:
+            return '00' + str(num)
+        elif len(str(num)) == 2:
+            return '0' + str(num)
+        else:
+            return str(num)
+
+
+    import pygame
+
+
+    FPS = 30
+
+    pygame.init()
+    pygame.mixer.quit()
+    clock = pygame.time.Clock()
+    movie = pygame.movie.Movie("D:\\hell_yeh\\output000.mpg")
+    screen = pygame.display.set_mode(movie.get_size())
+    movie_screen = pygame.Surface(movie.get_size()).convert()
+
+    movie.set_display(movie_screen)
+    movie.set_volume(0.5)
+    movie.play()
+
+    num = 1
+    playing = True
+    while playing:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                movie.stop()
+                playing = False
+
+        if not movie.get_busy():
+            print num
+            movie = pygame.movie.Movie("D:\\hell_yeh\\output" + get_part_video_num(num) + '.mpg')
+            movie = pygame.movie.Movie("D:\\hell_yeh\\output" + get_part_video_num(num) + '.mpg')
+            movie.set_display(movie_screen)
+            movie.set_volume(0.5)
+            movie.play()
+            num += 1
+
+        screen.blit(movie_screen, (0, 0))
+        pygame.display.update()
+        clock.tick(FPS)
+
+
+    pygame.quit()'''
+
+    def get_part_video_num(num):
+        if len(str(num)) == 1:
+            return '00' + str(num)
+        elif len(str(num)) == 2:
+            return '0' + str(num)
+        else:
+            return str(num)
+
+    COPY_PATH = "D:\\mpsplits\\"
+    PASTE_PATH = "D:\\mas\\"
+    n = 0
+
+    import subprocess
+    #for i in range(20):
+    #    p = subprocess.call('ffmpeg -i %s.mp4 %s.wav' % (COPY_PATH+get_part_video_num(n), PASTE_PATH+get_part_video_num(n)))
+    #    n += 1
+
+    n = 0
+    for i in range(20):
+        p = subprocess.call('ffmpeg -i %s.mp4 -target ntsc-vcd -vcodec mpeg1video -an %s.mpg' % (COPY_PATH+get_part_video_num(n), PASTE_PATH+get_part_video_num(n)))
+        n += 1
+    print 'nehenaknu im gui'
+    pass
+
 
 
 

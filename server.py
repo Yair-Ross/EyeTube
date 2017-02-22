@@ -111,15 +111,16 @@ class Receive_vid(threading.Thread):
 
     def run(self):
         """starts a receiver thread"""
-        md5 = hashlib.md5()
+        m = hashlib.md5
         self.sock.bind(('0.0.0.0', self.port))
         self.sock.listen(1)
         (self.client, self.address) = self.sock.accept()
 
-        f = open(self.temp_path + str(self.port), 'wb')
+        f = open(self.temp_path + str(self.port) + '.mp4', 'wb')
 
         while True:
             c_hash = self.client.recv(1024)
+            #print c_hash
             if c_hash == 'end-of-upload':
                 f.close()
                 """
@@ -131,17 +132,24 @@ class Receive_vid(threading.Thread):
                 break
             self.client.send('ok')
             self.data = self.client.recv(4096)
-            while not md5(self.data).hexdigest() == c_hash:
+            hashed = m(self.data)
+            #print hashed.hexdigest()
+            while not hashed.hexdigest() == c_hash:
+                #print c_hash
+                #print hashed.hexdigest()
                 self.count += 1
                 if self.count > 5:
                     self.client.close()
                     f.close()
-                    remove(self.path)
+                    #remove(self.temp_path + str(self.port) + '.mp4')
                     return
                 self.client.send('sa')
+                self.data = self.client.recv(4096)
+                hashed = m(self.data)
             else:
                 self.client.send('kg')
                 f.write(self.data)
+                self.count == 0
 
 
 
@@ -244,7 +252,8 @@ def rand_port():
 
 
 PATH = "D:\\from2\\"
-TMP_UPLOAD = 'E:\\tmp\\upload_tmp\\'
+#TMP_UPLOAD = 'E:\\tmp\\upload_tmp\\'
+TMP_UPLOAD = "D:\\ab\\"
 #PATH = "E:\\tmp\\test_subj\\"
 
 
