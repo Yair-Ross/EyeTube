@@ -7,7 +7,19 @@ import threading
 from random import randint
 import sqlite3
 import hashlib
-from os import remove
+import os
+import video_manager
+from subprocess import call
+
+
+
+try:
+    call('ffmpeg -version')
+except:
+    print 'YOU NEED TO INSTALL FFMPEG TO RUN THIS SERVER'
+    print 'YOU FORGOT TO INSTALL FFMPEG YOU JACKASS!!!!!'
+    os._exit(0)
+
 
 
 class Streamer(threading.Thread):
@@ -41,11 +53,21 @@ class Streamer(threading.Thread):
             while fileraw != '':
                 self.client.send(fileraw)
                 fileraw = self.file.read(1024)
-            self.client.send('p-end')
+            self.client.send('v-end')
             ok = self.client.recv(4)
+
+            self.file.close()
+            self.file = open(self.filePath + self.get_part_video_num() + '.wav', 'rb')
+            fileraw = self.file.read(1024)
+            while fileraw != '':
+                self.client.send(fileraw)
+                fileraw = self.file.read(1024)
+            self.client.send('w-end')
+            ok = self.client.recv(4)
+
+            self.file.close()
             self.part += 1
             self.check_request()
-            self.file.close()
 
         self.stop()
 
@@ -116,36 +138,51 @@ class Receive_vid(threading.Thread):
         self.sock.listen(1)
         (self.client, self.address) = self.sock.accept()
 
-        f = open(self.temp_path + str(self.port) + '.mp4', 'wb')
+        f = open(self.temp_path, 'wb')
 
         while True:
-            c_hash = self.client.recv(1024)
+            c_hash = self.client.recv(32)
             #print c_hash
-            if c_hash == 'end-of-upload':
+            if c_hash == 'end-of-upload-d-o-n-e-now-what-?':
                 f.close()
                 """
                 code in here for making the video to valid mpeg
                 """
+
+                if not os.path.exists(PATH+self.name):
+                    os.makedirs(PATH+self.name)
+
+                vid = video_manager.Video_manager(path=self.temp_path, split_path=PATH+self.name+'\\')
+                vid.divide_video()
+
+                '''
+                database insert
+                '''
+
                 self.client.send('complete')
                 self.client.close()
                 self.sock.close()
                 break
             self.client.send('ok')
-            self.data = self.client.recv(4096)
+            self.data = self.client.recv(1024)
             hashed = m(self.data)
             #print hashed.hexdigest()
             while not hashed.hexdigest() == c_hash:
                 #print c_hash
                 #print hashed.hexdigest()
                 self.count += 1
-                if self.count > 5:
+                if self.count > 10:
                     self.client.close()
                     f.close()
-                    #remove(self.temp_path + str(self.port) + '.mp4')
+                    os.remove(self.temp_path)
                     return
                 self.client.send('sa')
-                self.data = self.client.recv(4096)
+                c_hash = self.client.recv(32)
+                #print c_hash
+                self.client.send('ok')
+                self.data = self.client.recv(1024)
                 hashed = m(self.data)
+                #print hashed.hexdigest()
             else:
                 self.client.send('kg')
                 f.write(self.data)
@@ -208,7 +245,7 @@ class Communication():
                 threads[port] = (0, 0)
                 mutex.release()
 
-                receiver = Receive_vid(port, TMP_UPLOAD + 'tmp_' + name, name, f_hash)
+                receiver = Receive_vid(port, TMP_UPLOAD + 'tmp_' + name + str(port) + '.mp4', name, f_hash)
                 receiver.start()
 
                 self.send_to_customer('upload_approved:' + str(port), client)
@@ -230,7 +267,7 @@ class Sqlcommands():
 
     def get_movie(self, name):
         """returns the movie path and number of parts"""
-        return PATH, 59
+        return PATH, 123
 
     def exists_in_base(self, param, value):
         """returns if exists in database"""
@@ -250,11 +287,12 @@ def rand_port():
     return p
 
 
-
-PATH = "D:\\from2\\"
+#PATH = "D:\\"
+PATH = "D:\\testname\\testname\\"
 #TMP_UPLOAD = 'E:\\tmp\\upload_tmp\\'
-TMP_UPLOAD = "D:\\ab\\"
+TMP_UPLOAD = "D:\\server_data\\"
 #PATH = "E:\\tmp\\test_subj\\"
+#PATH = "E:\\tmp\\"
 
 
 server_socket = socket.socket()

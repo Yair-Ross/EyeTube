@@ -60,12 +60,18 @@ def search_movie(name):
     print "Operation done successfully";
     conn.close()
 
+def get_movie(name):
+    conn = sqlite3.connect('test.db')
+    path = conn.execute("SELECT MOVIE_PATH FROM VIDEOS WHERE MOVIE_NAME='%s'" % (name)).fetchone()
+    return path[0]
+
 
 def main():
     #create_table()
     #insert_movie(8, "mashooshooshoo", "E:\\tmp\\path", 277, 3, 1, "53dfgfdgfded4ccd7d3b9195933c8", 133, 355000)
     #exists_in_base('HASH', '53dc0a1e33c70ed4ccd7d3b9195933c8')
-    print search_movie('mashoo')
+    #print search_movie('mashoo')
+    print get_movie('y7y7')
     '''conn = sqlite3.connect('test.db')
     print "Opened database successfully";
 
