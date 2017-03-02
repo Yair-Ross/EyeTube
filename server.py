@@ -218,7 +218,7 @@ class Communication():
             threads[port] = (0, 0)
             mutex.release()
 
-            stream = Streamer(0, port, fold, 0, parts)
+            stream = Streamer(0, port, fold + name + '\\', 0, parts)
             stream.start()
             self.send_to_customer('video_stream:' + str(port) + ':' + str(parts), client)
 
@@ -267,7 +267,7 @@ class Sqlcommands():
 
     def get_movie(self, name):
         """returns the movie path and number of parts"""
-        return PATH, 123
+        return PATH, 104
 
     def exists_in_base(self, param, value):
         """returns if exists in database"""
@@ -287,8 +287,9 @@ def rand_port():
     return p
 
 
-#PATH = "D:\\"
-PATH = "D:\\testname\\testname\\"
+PATH = "D:\\"
+#PATH = "D:\\testname\\testname\\"
+#PATH = "E:\\tmp\\vids\\testname\\"
 #TMP_UPLOAD = 'E:\\tmp\\upload_tmp\\'
 TMP_UPLOAD = "D:\\server_data\\"
 #PATH = "E:\\tmp\\test_subj\\"
