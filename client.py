@@ -112,9 +112,11 @@ class Uploader(threading.Thread):
 
         f.close()
         self.sock.send('end-of-upload-d-o-n-e-now-what-?')
+        print 'processing video... this may take a few minutes'
         self.data = self.sock.recv(1024)
         if self.data == 'complete':
             self.sock.close()
+            uploading.set()
         else:
             pass
 
@@ -190,6 +192,10 @@ class Communication():
             port = int(data[16:])
             uploader = Uploader(port, upload_path)
             uploader.start()
+        elif data == 'invalid':
+            print 'invalid upload'
+        elif data == 'vid_not_found':
+            print 'could not watch vid'
 
 
 
@@ -205,7 +211,7 @@ def get_part_video_num(num):
 
 
 def generate_file_md5(filename, blocksize=2**20):
-    """makes a hash for the file"""
+    """returns a hash for the file"""
     m = hashlib.md5()
     with open(filename, "rb") as f:
         while True:
@@ -216,15 +222,23 @@ def generate_file_md5(filename, blocksize=2**20):
     return m.hexdigest()
 
 
+def play_vid():
+    pass
 
+
+if len(sys.argv) < 2:
+    print 'you need to enter an empty cache folder'
+    sys.exit()
 
 
 IP, PORT = '127.0.0.1', 7777
-CASHE = "D:\\here2\\"
+#CASHE = "D:\\here2\\"
 #CASHE = "E:\\tmp\\here\\"
+CASHE = sys.argv[1]
 CHUNK = 1024
 FPS = 30
 playing = True
+uploading = threading.Event()
 
 
 
@@ -235,9 +249,29 @@ sock.connect((IP, PORT))
 
 com = Communication(sock)
 
+print 'client version 1'
+movie_name = raw_input('please enter video name: ')
+upload_path = raw_input('please enter a path to an mp4 video wich you want to upload: ')
+while not isfile(upload_path) or not upload_path[-4:] == '.mp4':
+    upload_path = raw_input('please enter a valid mp4 path: ')
+
 
 if 1 == 1:
-    movie_name = 'moviehere'
+    #upload_path = "E:\\tmp\\ep1.mp4"
+    #upload_path = "E:\\tmp\\WTF.mp4"
+    #upload_path = "E:\\tmp\\dogs.mp4"
+    #upload_path = "D:\\The_Hobbit_Trailer.mp4"
+    #upload_path = "D:\\allstar.mp4"
+    #upload_path = "E:\\tmp\\cats.mp4"
+    #upload_path = "D:\\dogs.mp4"
+    file_hash = generate_file_md5(upload_path)
+    sock.send('upload:' + movie_name + ':!:' + file_hash)
+    data = sock.recv(1024)
+    com.handle_message(data)
+
+uploading.wait()
+time.sleep(7)
+if 1 == 1:
     sock.send('Watch:' + movie_name)
     data = sock.recv(1024)
     com.handle_message(data)
@@ -258,9 +292,11 @@ if 1 == 1:
         print 've hhazozrot'
         print not isfile(CASHE + movie_name + '\\')
 
+        #audio player
         player = Music_player()
 
         pygame.init()
+        #needed for controlling the fps
         clock = pygame.time.Clock()
         movie = pygame.movie.Movie(CASHE + movie_name + '\\' + "000.mpg")
         screen = pygame.display.set_mode(movie.get_size())
@@ -269,8 +305,9 @@ if 1 == 1:
         pygame.display.flip()
 
         movie.set_display(movie_screen, [0, 0, 528, 360])
-        #movie.set_display(movie_screen, [0, 0, 528, 360])
+        #starts the audio
         player.start()
+        #starts movie
         movie.play()
 
         num = 1
@@ -279,10 +316,12 @@ if 1 == 1:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     movie.stop()
+                    #will stop the audio too
                     playing = False
 
             if not movie.get_busy() and playing and isfile(CASHE + movie_name + '\\' + get_part_video_num(num) + '.mpg') and isfile(CASHE + movie_name + '\\' + get_part_video_num(num) + '.wav'):
                 print num
+                #next video part
                 movie = pygame.movie.Movie(CASHE + movie_name + '\\' + get_part_video_num(num) + '.mpg')
                 movie.set_display(movie_screen, [0, 0, 528, 360])
                 movie.play()
@@ -297,15 +336,3 @@ if 1 == 1:
 
     sock.close()
 
-if 1 == 2:
-    #upload_path = "E:\\tmp\\ep1.mp4"
-    #upload_path = "E:\\tmp\\WTF.mp4"
-    #upload_path = "E:\\tmp\\dogs.mp4"
-    #upload_path = "D:\\The_Hobbit_Trailer.mp4"
-    upload_path = "D:\\allstar.mp4"
-    #upload_path = "E:\\tmp\\cats.mp4"
-    #upload_path = "D:\\dogs.mp4"
-    file_hash = generate_file_md5(upload_path)
-    sock.send('upload:' + 'moviehere:!:' + file_hash)
-    data = sock.recv(1024)
-    com.handle_message(data)
