@@ -169,6 +169,8 @@ class Receive_vid(threading.Thread):
                 threads[self.port] = (self.name, PATH+self.name+'\\', vid.get_length(), self.hashfile, vid.get_num_of_parts(), vid.get_size())
                 mutex.release()
 
+                os.remove(self.temp_path)
+
                 break
             #sends the client to send data
             self.client.send('ok')
@@ -245,7 +247,7 @@ class Communication():
                 threads[port] = (0, 0)
                 mutex.release()
 
-                stream = Streamer(0, port, fold + name + '\\', 0, parts)
+                stream = Streamer(0, port, fold, 0, parts)
                 stream.start()
                 self.send_to_customer('video_stream:' + str(port) + ':' + str(parts), client)
             else:
@@ -298,9 +300,9 @@ class Communication():
 class Sqlcommands():
     """a class that handles the communication with the database"""
 
-    def __init__(self):
+    def __init__(self, base):
         """gets the sql database"""
-        self.conn = sqlite3.connect("test2.db")
+        self.conn = sqlite3.connect(base)
         """if not self.conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='spwords'").fetchone():
             self.conn.execute('''CREATE TABLE VIDEOS
                    (ID INT PRIMARY KEY     NOT NULL,
@@ -343,6 +345,10 @@ class Sqlcommands():
         cursor = self.conn.execute("SELECT ID, MOVIE_NAME, VIEWS, SCORE  from VIDEOS")
 
         return [(str(row[1]), row[2], row[3]) for row in cursor if name in str(row[1])]
+
+    def get_max_id(self):
+        """returns the max id in the table"""
+        return self.conn.execute("SELECT max(ID) FROM VIDEOS").fetchone()[0]
 
 
 def rand_port():
@@ -391,8 +397,6 @@ server_socket.bind(('0.0.0.0', 7777))
 server_socket.listen(10)
 open_client_sockets = []
 
-count = 0
-
 #will be a dictionary that will be built from a port key and a request tuple
 threads = {}
 #will be the ipc controller
@@ -401,7 +405,7 @@ mutex = threading.Lock()
 #handles the requests
 com = Communication(server_socket)
 #handles database
-sql = Sqlcommands()
+sql = Sqlcommands("E:\\vids.db")
 
 #main server loop
 while True:
@@ -419,16 +423,18 @@ while True:
             #handles the client request
             com.handle_request(data, current_socket)
 
-    mutex.acquire()
-    #copies the thread list so that the other threads wont wait for too long
-    dup_threads = threads
-    mutex.release()
+    if len(threads) > 0:
 
-    for port, values in dup_threads.iteritems():
-        if len(values) > 5:
-            sql.add_movie(count, values[0], values[1], values[2], 0, 0, values[3], values[4], values[5])
+        mutex.acquire()
+        #copies the thread list so that the other threads wont wait for too long
+        dup_threads = threads.copy()
+        mutex.release()
 
-            #earazes the thread from the dictionary thus it ended its work
-            mutex.acquire()
-            threads.pop(port)
-            mutex.release()
+        for port, values in dup_threads.iteritems():
+            if len(values) > 5:
+                sql.add_movie(sql.get_max_id() + 1, values[0], values[1], values[2], 0, 0, values[3], values[4], values[5])
+
+                #earazes the thread from the dictionary thus it ended its work
+                mutex.acquire()
+                threads.pop(port)
+                mutex.release()

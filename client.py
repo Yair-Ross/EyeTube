@@ -166,6 +166,20 @@ class Music_player(threading.Thread):
         p.terminate()
 
 
+class Graphic_Ui:
+    """a class that is responsible for the gui's paintings"""
+
+    def __init__(self, bar_length, bar_high, color, x, y):
+        self.bar_length = bar_length
+        self.bar_high = bar_high
+        self.color = color
+        self.x = x
+        self.y = y
+
+    def show_video_bar(self):
+        pygame.draw.rect(screen, self.color, (self.x, self.y, self.x + self.bar_length, self.y + self.bar_high))
+
+
 class Communication():
     """class for communication with the server"""
 
@@ -251,7 +265,7 @@ com = Communication(sock)
 
 print 'client version 1'
 movie_name = raw_input('please enter video name: ')
-upload_path = raw_input('please enter a path to an mp4 video wich you want to upload: ')
+'''upload_path = raw_input('please enter a path to an mp4 video which you want to upload: ')
 while not isfile(upload_path) or not upload_path[-4:] == '.mp4':
     upload_path = raw_input('please enter a valid mp4 path: ')
 
@@ -270,7 +284,7 @@ if 1 == 1:
     com.handle_message(data)
 
 uploading.wait()
-time.sleep(7)
+time.sleep(7)'''
 if 1 == 1:
     sock.send('Watch:' + movie_name)
     data = sock.recv(1024)
@@ -292,6 +306,7 @@ if 1 == 1:
         print 've hhazozrot'
         print not isfile(CASHE + movie_name + '\\')
 
+        painter = Graphic_Ui(520, 8, (0, 200, 0), 4, 370)
         #audio player
         player = Music_player()
 
@@ -309,6 +324,8 @@ if 1 == 1:
         player.start()
         #starts movie
         movie.play()
+
+        painter.show_video_bar()
 
         num = 1
         playing = True
