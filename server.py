@@ -405,7 +405,7 @@ mutex = threading.Lock()
 #handles the requests
 com = Communication(server_socket)
 #handles database
-sql = Sqlcommands("E:\\vids.db")
+sql = Sqlcommands("e:\\vids.db")
 
 #main server loop
 while True:
@@ -432,7 +432,12 @@ while True:
 
         for port, values in dup_threads.iteritems():
             if len(values) > 5:
-                sql.add_movie(sql.get_max_id() + 1, values[0], values[1], values[2], 0, 0, values[3], values[4], values[5])
+                vid_id = sql.get_max_id()
+                if vid_id:
+                    vid_id += 1
+                else:
+                    vid_id = 1
+                sql.add_movie(vid_id, values[0], values[1], values[2], 0, 0, values[3], values[4], values[5])
 
                 #earazes the thread from the dictionary thus it ended its work
                 mutex.acquire()
