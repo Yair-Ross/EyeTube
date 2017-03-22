@@ -124,14 +124,16 @@ class Uploader(threading.Thread):
 class Music_player(threading.Thread):
     """audio player thread object"""
 
-    def __init__(self):
+    def __init__(self, part):
         """initilize thread"""
         threading.Thread.__init__(self)
+        self.part = part
+        self.next = False
+        self.streamnum = 1
+
 
     def run(self):
         """runs audio of the video"""
-
-        wf = wave.open(CASHE + movie_name + '\\' + '000.wav', 'rb')
 
         p = pyaudio.PyAudio()
 
@@ -140,25 +142,21 @@ class Music_player(threading.Thread):
                         rate=wf.getframerate(),
                         output=True)
 
-        part = 1
-        data = wf.readframes(CHUNK)
-
-        while data != '' and playing:
-            stream.write(data)
-            data = wf.readframes(CHUNK)
+        musicdata = wf.readframes(CHUNK)
 
         while playing:
-
-            wf = wave.open(CASHE + movie_name + '\\' + get_part_video_num(part) + '.wav', 'rb')
-            data = wf.readframes(CHUNK)
-
-            while data != '' and playing:
-                #audio need to get streamed constantly
-                stream.write(data)
-                data = wf.readframes(CHUNK)
-
-
-            part += 1
+            if self.streamnum == 1:
+                stream.write(musicdata)
+                musicdata = wf.readframes(CHUNK)
+            else:
+                stream.write(musicdata)
+                musicdata = wf2.readframes(CHUNK)
+            if len(musicdata) < CHUNK or musicdata == '':
+                if self.streamnum == 1:
+                    self.streamnum = 2
+                else:
+                    self.streamnum = 1
+                self.next = False
 
         stream.stop_stream()
         stream.close()
@@ -184,16 +182,17 @@ class Graphic_Ui():
         pygame.draw.rect(screen, self.loading_color, (self.x + 1, self.y + 1, int((float(loading_num)/total_num) * (self.bar_length - 2)), self.bar_high - 2))
         pygame.draw.rect(screen, self.watch_color, (self.x + 1, self.y + 1, int((float(viewed_num)/total_num) * (self.bar_length - 2)), self.bar_high - 2))
 
-        
-        
+
 class Cache():
     """a class that handles the cashe"""
     def __init__(self):
         self.cache = CASHE
 
-    def in_cashe(self):
-        return True
-
+    def in_cashe(self, name, parts):
+        if exists(CASHE + name + '\\') and len([f for f in listdir(CASHE + name + '\\') if isfile(join(CASHE + name + '\\', f))]) == parts:
+            return True
+        else:
+            return False
 
 
 class Communication():
@@ -201,6 +200,7 @@ class Communication():
 
     def __init__(self, sock):
         self.sock = sock
+        self.partnum = 0
 
     def handle_message(self, data):
         """gets a message that was received from the server"""
@@ -209,22 +209,26 @@ class Communication():
         if data[:13] == 'video_stream:':
             #port will be between 3000 to 7000
             port = int(data[13:17])
-            parts = int(data[18:])
+            self.partnum = int(data[18:])
 
             #creates a video file in cache
             if not exists(CASHE + movie_name + '\\'):
                 makedirs(CASHE + movie_name + '\\')
 
-            receive = Receiver(port, parts, CASHE + movie_name + '\\')
+            receive = Receiver(port, self.partnum, CASHE + movie_name + '\\')
             receive.start()
         #upload stream approved
         elif data[:16] == 'upload_approved:':
             port = int(data[16:])
             uploader = Uploader(port, upload_path)
             uploader.start()
+        elif data[:6] == 'parts:':
+            if data[6:].isdigit():
+                self.partnum = int(data[6:])
         elif data == 'invalid':
             print 'invalid upload'
         elif data == 'vid_not_found':
+            self.partnum = -1
             print 'could not watch vid'
 
 
@@ -303,80 +307,120 @@ if 1 == 1:
 uploading.wait()
 time.sleep(7)'''
 if 1 == 1:
+
+    sock.send('parts:' + movie_name)
+    data = sock.recv(1024)
+    com.handle_message(data)
+    numpart = com.partnum
     
-    if not cach.in_cashe():
+    if not cach.in_cashe(movie_name, numpart) and not numpart == -1:
         sock.send('Watch:' + movie_name)
         data = sock.recv(1024)
         com.handle_message(data)
 
-    #gets all files in cache
-    incashe = [f for f in listdir(CASHE + movie_name + '\\') if isfile(join(CASHE + movie_name + '\\', f))]
-    t = time.time()
+    if numpart != -1:
 
-    #checks if enough parts went in
-    while not isfile(CASHE + movie_name + '\\' + "000.mpg") or len(incashe) < 5:
+        #gets all files in cache
         incashe = [f for f in listdir(CASHE + movie_name + '\\') if isfile(join(CASHE + movie_name + '\\', f))]
-        #timeout for waiting is 15 minutes
-        if time.time() - t > 15:
-            break
+        t = time.time()
 
-    else:
-        print len(incashe)
-        print 've hhazozrot'
-        print not isfile(CASHE + movie_name + '\\')
+        #checks if enough parts went in
+        while not isfile(CASHE + movie_name + '\\' + "000.mpg") or len(incashe) < 5:
+            incashe = [f for f in listdir(CASHE + movie_name + '\\') if isfile(join(CASHE + movie_name + '\\', f))]
+            #timeout for waiting is 15 minutes
+            if time.time() - t > 15:
+                break
 
-        #audio player
-        player = Music_player()
+        else:
+            print len(incashe)
+            print 've hhazozrot'
+            print not isfile(CASHE + movie_name + '\\')
 
-        pygame.init()
-        #needed for controlling the fps
-        clock = pygame.time.Clock()
-        movie = pygame.movie.Movie(CASHE + movie_name + '\\' + "000.mpg")
-        screen = pygame.display.set_mode(movie.get_size())
-        #movie_screen = pygame.Surface(movie.get_size()).convert
-        movie_screen = pygame.display.set_mode((528, 768))
-        movie_screen.fill((0, 255, 255))
-        pygame.display.flip()
+            print numpart
+            num = 0
+            wf = wave.open(CASHE + movie_name + '\\' + get_part_video_num(num) + '.wav', 'rb')
+            wf2 = wave.open(CASHE + movie_name + '\\' + get_part_video_num(num + 1) + '.wav', 'rb')
+            #audio player
+            player = Music_player(num)
 
-        movie.set_display(movie_screen, [0, 0, 528, 360])
+            pygame.init()
+            #needed for controlling the fps
+            clock = pygame.time.Clock()
+            movie = pygame.movie.Movie(CASHE + movie_name + '\\' + get_part_video_num(num) + ".mpg")
+            screen = pygame.display.set_mode(movie.get_size())
+            #movie_screen = pygame.Surface(movie.get_size()).convert
+            movie_screen = pygame.display.set_mode((528, 768))
+            movie_screen.fill((255, 255, 255))
+            pygame.display.flip()
 
-        vid_bar = Graphic_Ui(528, 8, (105, 105, 105), (102, 255, 51), (192, 192, 192), 0, 362)
-        vid_bar.show_video_bar(54, 33, 104)
+            movie.set_display(movie_screen, [0, 0, 528, 360])
 
-        #starts the audio
-        player.start()
-        #starts movie
-        movie.play()
+            vid_bar = Graphic_Ui(528, 8, (105, 105, 105), (102, 255, 51), (192, 192, 192), 0, 362)
+            vid_bar.show_video_bar(numpart, num, numpart)
 
-        num = 1
-        playing = True
-        while playing:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    movie.stop()
-                    #will stop the audio too
-                    playing = False
-                elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    pos = pygame.mouse.get_pos()
-                    if vid_bar.bar.collidepoint(pos):
-                        pass
-                        #movie.stop()
-                        #playing = False
+            #starts the audio
+            player.start()
+            #starts movie
+            movie.play()
 
-            if not movie.get_busy() and playing and isfile(CASHE + movie_name + '\\' + get_part_video_num(num) + '.mpg') and isfile(CASHE + movie_name + '\\' + get_part_video_num(num) + '.wav'):
-                print num
-                #next video part
-                movie = pygame.movie.Movie(CASHE + movie_name + '\\' + get_part_video_num(num) + '.mpg')
-                movie.set_display(movie_screen, [0, 0, 528, 360])
-                movie.play()
-                num += 1
+            num += 1
 
-            screen.blit(movie_screen, (0, 0))
-            pygame.display.update()
-            clock.tick(FPS)
+            playing = True
+            while playing:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        movie.stop()
+                        #will stop the audio too
+                        playing = False
+                    elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                        pos = pygame.mouse.get_pos()
+                        if vid_bar.bar.collidepoint(pos):
+                            pass
+                            movie.stop()
+                            playing = False
+                            while player.isAlive():
+                                pass
 
-        pygame.quit()
-        #sys.exit()
+                            num = int((float(pos[0])/(vid_bar.bar_length-2)) * numpart)
+                            print num
+
+                            wf = wave.open(CASHE + movie_name + '\\' + get_part_video_num(num) + '.wav', 'rb')
+                            wf2 = wave.open(CASHE + movie_name + '\\' + get_part_video_num(num + 1) + '.wav', 'rb')
+                            #audio player
+                            player = Music_player(num)
+                            player.start()
+                            movie = pygame.movie.Movie(CASHE + movie_name + '\\' + get_part_video_num(num) + '.mpg')
+                            movie.set_display(movie_screen, [0, 0, 528, 360])
+                            movie.play()
+                            num += 1
+
+                            vid_bar.show_video_bar(numpart, num, numpart)
+
+                            playing = True
+
+                if not movie.get_busy() and playing and isfile(CASHE + movie_name + '\\' + get_part_video_num(num) + '.mpg') and isfile(CASHE + movie_name + '\\' + get_part_video_num(num) + '.wav'):
+                    print num
+                    #next video part
+                    movie = pygame.movie.Movie(CASHE + movie_name + '\\' + get_part_video_num(num) + '.mpg')
+                    movie.set_display(movie_screen, [0, 0, 528, 360])
+                    movie.play()
+                    num += 1
+
+                    vid_bar.show_video_bar(numpart, num, numpart)
+
+                if not player.next and playing and isfile(CASHE + movie_name + '\\' + get_part_video_num(num) + '.wav'):
+                    if player.streamnum == 2:
+                        wf = wave.open(CASHE + movie_name + '\\' + get_part_video_num(num) + '.wav', 'rb')
+                    else:
+                        wf2 = wave.open(CASHE + movie_name + '\\' + get_part_video_num(num) + '.wav', 'rb')
+                    player.next = True
+
+                screen.blit(movie_screen, (0, 0))
+                pygame.display.update()
+                clock.tick(FPS)
+
+            pygame.quit()
+            #sys.exit()
 
     sock.close()
 

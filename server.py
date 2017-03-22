@@ -219,6 +219,15 @@ class Communication():
             open_client_sockets.remove(client)
             print "Connection with client closed"
 
+        elif dat[:6] == 'parts:':
+            name = dat[6:]
+            if sql.exists_in_base('MOVIE_NAME', name):
+                fold, parts = sql.get_movie(name)
+                self.send_to_customer('parts:' + str(parts), client)
+            else:
+                self.send_to_customer('vid_not_found', client)
+
+
         elif dat[:7] == 'search:':
             #searches video
             serch_word = dat[7:]
