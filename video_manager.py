@@ -15,8 +15,8 @@ class Video_manager():
         #the default split will be for the same file as the given path
         if split_path:
             self.split_path = split_path
-        else:
-            self.split_path = self.path[-self.path.index('\\'):]
+        '''else:
+            self.split_path = self.path[-self.path.index('\\'):]'''
 
     def get_part_video_num(self, num):
         """gets a number to a 3 digit string"""
@@ -53,7 +53,11 @@ class Video_manager():
         """gets a video to convert to video and audio parts"""
         if self.path and self.split_path:
             segment_size = self.get_parts()
-
+            print
+            print ('ffmpeg -i %s -c copy -map 0 -segment_time %s -f segment %s' % (self.path, segment_size, self.split_path) + '%03d.mp4')
+            print
+            print
+            print
             #divide video to parts of the calculated length, NOTE: not every part will be exactly at the same length
             p = SUB.call('ffmpeg -i %s -c copy -map 0 -segment_time %s -f segment %s' % (self.path, segment_size, self.split_path) + '%03d.mp4')
 
@@ -80,8 +84,11 @@ class Video_manager():
                 n += 1
 
             for f in files:
-                #deletes the unnecessary original video parts
-                remove(self.split_path + f)
+                try:
+                    #deletes the unnecessary original video parts
+                    remove(self.split_path + f)
+                except:
+                    pass
 
             print 'nehenaknu im gui'
 
@@ -95,9 +102,10 @@ class Video_manager():
                     partnum += 1
             return partnum
 
-    def get_size(self):
+    def get_size(self, size=20):
+        """returns the file size in mega bytes by default or in other size if size is given"""
         if self.path:
-            return int(getsize(self.path) >> 20)
+            return int(getsize(self.path) >> size)
 
 
 def main():
